@@ -18,7 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307,
 # USA.
 
-sudo: false
+sudo: true
 
 notifications:
   email: false
@@ -32,7 +32,11 @@ addons:
   postgresql: "9.4"
 
 env:
-  - SQLALCHEMY_DATABASE_URI=postgres://postgres@localhost:5432/postgres
+  global:
+    - LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+  matrix:
+    - SQLALCHEMY_DATABASE_URI=postgres://postgres@localhost:5432/postgres
+
 
 cache:
   - pip
@@ -41,21 +45,26 @@ before_install:
   - travis_retry pip install kwalitee --pre
   - echo ${TRAVIS_COMMIT_RANGE}
   - |
-       # inspiration from https://github.com/trevp/tlslite/blob/master/.travis.yml
-       # workaround for https://github.com/travis-ci/travis-ci/issues/2666
-       if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-         URL="https://github.com/${TRAVIS_REPO_SLUG}/pull/${TRAVIS_PULL_REQUEST}.patch"
-         PR_FIRST=$(curl --silent --show-error --location $URL | head -1 | grep -o -E '\b[0-9a-f]{40}\b' | tr -d '\n')
-         TRAVIS_COMMIT_RANGE=$PR_FIRST^..$TRAVIS_COMMIT
+       # inspiration from https://code.lorea.io/faeries/lorea-hydra/blob/6029e4ee391f6cf6f20545b18fad6a1f57245a90/.scripts/travis/check_commit_msgs.sh
+       if [[ "$TRAVIS_COMMIT_RANGE" == *...* ]]; then
+         TRAVIS_COMMIT_RANGE=`echo $TRAVIS_COMMIT_RANGE | sed 's/\.\.\./../'`
        fi
   - echo ${TRAVIS_COMMIT_RANGE}
 
 install:
+  - sudo apt-get install -qy python-dev libffi-dev cmake
+  - wget https://github.com/libgit2/libgit2/archive/v0.24.1.tar.gz || true
+  - tar xzf v0.24.1.tar.gz || true
+  - cd libgit2-0.24.1/ || true
+  - cmake . && make && sudo make install || true
+  - cd .. || true
+  - pip install cffi pygit2 || true
   - travis_retry pip install --upgrade pip
   - travis_retry pip install -e .[tests]
 
 before_script:
   - travis_retry pip install kwalitee GitPython --pre  # needs recent pep257
+  - echo ${TRAVIS_COMMIT_RANGE}
   - kwalitee check message -s ${TRAVIS_COMMIT_RANGE}
   - travis_retry pip install pytest-pep257  # needs older pep257
   - travis_retry pip install sphinx
