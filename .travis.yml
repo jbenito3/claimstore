@@ -37,26 +37,11 @@ env:
 cache:
   - pip
 
-before_install:
-  - travis_retry pip install kwalitee --pre
-  - echo ${TRAVIS_COMMIT_RANGE}
-  - |
-       # inspiration from https://github.com/trevp/tlslite/blob/master/.travis.yml
-       # workaround for https://github.com/travis-ci/travis-ci/issues/2666
-       if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-         URL="https://github.com/${TRAVIS_REPO_SLUG}/pull/${TRAVIS_PULL_REQUEST}.patch"
-         PR_FIRST=$(curl --silent --show-error --location $URL | head -1 | grep -o -E '\b[0-9a-f]{40}\b' | tr -d '\n')
-         TRAVIS_COMMIT_RANGE=$PR_FIRST^..$TRAVIS_COMMIT
-       fi
-  - echo ${TRAVIS_COMMIT_RANGE}
-
 install:
   - travis_retry pip install --upgrade pip
   - travis_retry pip install -e .[tests]
 
 before_script:
-  - travis_retry pip install kwalitee GitPython --pre  # needs recent pep257
-  - kwalitee check message -s ${TRAVIS_COMMIT_RANGE}
   - travis_retry pip install pytest-pep257  # needs older pep257
   - travis_retry pip install sphinx
   - sphinx-apidoc -f -e -o docs/api/ claimstore
